@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>두더지 잡기 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #a8d5a8 0%, #90c890 50%, #78b878 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+        }
+
+        .game-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .start-button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 18px 60px;
+            font-size: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: bold;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .start-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .start-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .game-container {
+            width: 70%;
+            max-width: 900px;
+            aspect-ratio: 1;
+            background: linear-gradient(180deg, #a8d5a8 0%, #90c890 50%, #78b878 100%);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 15px 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .game-title {
+            color: #333;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .game-stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            color: #555;
+            font-size: 14px;
+        }
+
+        .holes-container {
+            width: 100%;
+            height: calc(100% - 100px);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .hole-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+        }
+
+        .hole-row.row-1,
+        .hole-row.row-3 {
+            justify-content: space-around;
+            padding: 0 30px;
+        }
+
+        .hole-row.row-2 {
+            justify-content: center;
+            gap: 60px;
+        }
+
+        .hole {
+            position: relative;
+            width: 120px;
+            height: 140px;
+            background: radial-gradient(circle at 30% 30%, rgba(100, 100, 100, 0.8), rgba(30, 30, 30, 0.9));
+            border-radius: 50% 50% 40% 40%;
+            box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.7), 
+                        inset -10px -10px 20px rgba(0, 0, 0, 0.5),
+                        0 8px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            border: 2px solid #1a1a1a;
+        }
+
+        .hole::before {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 50%;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8));
+            top: 0;
+            left: 5%;
+            border-radius: 50% 50% 0 0;
+        }
+
+        .mole {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            transition: transform 0.2s ease-out;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .mole.active {
+            transform: translateX(-50%) translateY(0%);
+        }
+
+        .mole img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            position: relative;
+        }
+
+        .mole:hover:not(.hit) img {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) brightness(1.1);
+        }
+
+        .mole.hit {
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            font-size: 24px;
+            pointer-events: none;
+            animation: starFly 0.6s ease-out forwards;
+        }
+
+        @keyframes starFly {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0.5);
+            }
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .game-over.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: popIn 0.4s ease-out;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .game-over-content h1 {
+            font-size: 48px;
+            color: #78b878;
+            margin-bottom: 20px;
+        }
+
+        .game-over-content .final-score {
+            font-size: 32px;
+            color: #666;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .game-over-content button {
+            background: linear-gradient(135deg, #78b878 0%, #5a9a5a 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: bold;
+        }
+
+        .game-over-content button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(120, 184, 120, 0.4);
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 1024px) {
+            .game-container {
+                width: 80%;
+                padding: 30px;
+            }
+
+            .game-title {
+                font-size: 24px;
+            }
+
+            .game-stats {
+                gap: 20px;
+            }
+
+            .stat-item {
+                font-size: 16px;
+            }
+
+            .hole {
+                width: 100px;
+                height: 120px;
+            }
+
+            .hole-row {
+                gap: 20px;
+            }
+
+            .hole-row.row-2 {
+                gap: 50px;
+            }
+
+            .star {
+                font-size: 20px;
+            }
+
+            .start-button {
+                padding: 15px 50px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .game-wrapper {
+                gap: 20px;
+            }
+
+            .game-container {
+                width: 90%;
+                padding: 20px;
+                aspect-ratio: auto;
+                min-height: 90vh;
+            }
+
+            .game-header {
+                flex-direction: column;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+
+            .game-title {
+                font-size: 22px;
+            }
+
+            .game-stats {
+                gap: 25px;
+            }
+
+            .stat-item {
+                font-size: 16px;
+            }
+
+            .holes-container {
+                height: calc(100% - 80px);
+            }
+
+            .hole {
+                width: 90px;
+                height: 110px;
+            }
+
+            .hole-row {
+                gap: 15px;
+            }
+
+            .hole-row.row-1,
+            .hole-row.row-3 {
+                padding: 0 15px;
+            }
+
+            .hole-row.row-2 {
+                gap: 40px;
+            }
+
+            .star {
+                font-size: 18px;
+            }
+
+            .game-over-content {
+                padding: 40px 30px;
+            }
+
+            .game-over-content h1 {
+                font-size: 36px;
+            }
+
+            .game-over-content .final-score {
+                font-size: 24px;
+            }
+
+            .start-button {
+                padding: 14px 45px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-wrapper {
+                gap: 15px;
+            }
+
+            .game-container {
+                width: 95%;
+                padding: 15px;
+            }
+
+            .game-header {
+                padding: 10px 15px;
+                margin-bottom: 15px;
+            }
+
+            .game-title {
+                font-size: 18px;
+            }
+
+            .game-stats {
+                gap: 15px;
+                font-size: 14px;
+            }
+
+            .stat-item {
+                font-size: 14px;
+            }
+
+            .holes-container {
+                height: calc(100% - 70px);
+            }
+
+            .hole {
+                width: 75px;
+                height: 95px;
+            }
+
+            .hole-row {
+                gap: 10px;
+            }
+
+            .hole-row.row-1,
+            .hole-row.row-3 {
+                padding: 0 10px;
+            }
+
+            .hole-row.row-2 {
+                gap: 30px;
+            }
+
+            .star {
+                font-size: 16px;
+            }
+
+            .game-over-content {
+                padding: 30px 20px;
+                border-radius: 15px;
+            }
+
+            .game-over-content h1 {
+                font-size: 32px;
+            }
+
+            .game-over-content .final-score {
+                font-size: 20px;
+                margin-bottom: 20px;
+            }
+
+            .game-over-content button {
+                padding: 12px 40px;
+                font-size: 16px;
+            }
+
+            .start-button {
+                padding: 12px 35px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="start-button-container">
+            <button class="start-button" id="startBtn">🎮 게임 시작</button>
+        </div>
+
+        <div class="game-container">
+            <div class="game-header">
+                <div class="game-title">🔨 두더지 잡기</div>
+                <div class="game-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">점수</div>
+                        <div id="score">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">시간</div>
+                        <div id="timer">30</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="holes-container">
+                <!-- 첫 번째 줄 (3개) -->
+                <div class="hole-row row-1">
+                    <div class="hole">
+                        <div class="mole" data-hole="0">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                    <div class="hole">
+                        <div class="mole" data-hole="1">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                    <div class="hole">
+                        <div class="mole" data-hole="2">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 두 번째 줄 (2개) -->
+                <div class="hole-row row-2">
+                    <div class="hole">
+                        <div class="mole" data-hole="3">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                    <div class="hole">
+                        <div class="mole" data-hole="4">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 세 번째 줄 (3개) -->
+                <div class="hole-row row-3">
+                    <div class="hole">
+                        <div class="mole" data-hole="5">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                    <div class="hole">
+                        <div class="mole" data-hole="6">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                    <div class="hole">
+                        <div class="mole" data-hole="7">
+                            <img src="https://via.placeholder.com/120/8B4513/FFFFFF?text=Mole" alt="두더지">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOverModal">
+        <div class="game-over-content">
+            <h1>🎉 게임 종료!</h1>
+            <div class="final-score">최종 점수: <span id="finalScore">0</span>점</div>
+            <button onclick="location.reload()">다시 시작</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== 두더지 이미지 URL =====
+        // 여기에 자신의 두더지 이미지 URL을 넣으세요
+        const MOLE_IMAGE_URL = 'https://github.com/KHJ-YEAH/game2_kdh/blob/main/KakaoTalk_20260331_160023965.jpg?raw=true';
+
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let activeMoles = new Set();
+        let popInterval = null;
+        let timerInterval = null;
+
+        const moles = document.querySelectorAll('.mole');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const startBtn = document.getElementById('startBtn');
+
+        // 이미지 URL 설정
+        moles.forEach(mole => {
+            mole.querySelector('img').src = MOLE_IMAGE_URL;
+        });
+
+        // 시작 버튼 클릭 이벤트
+        startBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        // 클릭 이벤트
+        moles.forEach(mole => {
+            mole.addEventListener('click', (e) => {
+                if (!gameActive || !mole.classList.contains('active') || mole.classList.contains('hit')) return;
+
+                e.stopPropagation();
+                hitMole(mole);
+            });
+        });
+
+        function startGame() {
+            // 게임 초기화
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            activeMoles.clear();
+
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft;
+            startBtn.disabled = true;
+            gameOverModal.classList.remove('show');
+
+            // 모든 두더지 리셋
+            moles.forEach(mole => {
+                mole.classList.remove('active', 'hit');
+            });
+
+            // 게임 시작
+            popMoles();
+
+            // 1초마다 두더지 나오기
+            popInterval = setInterval(() => {
+                if (gameActive) {
+                    popMoles();
+                }
+            }, 1000);
+
+            // 타이머
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function hitMole(mole) {
+            score++;
+            scoreDisplay.textContent = score;
+            mole.classList.add('hit');
+
+            // 별 효과 (이미지 위치에서)
+            createStars(mole);
+
+            // 두더지 다시 들어가기
+            setTimeout(() => {
+                mole.classList.remove('active', 'hit');
+                activeMoles.delete(mole);
+            }, 200);
+        }
+
+        function createStars(mole) {
+            const moleImg = mole.querySelector('img');
+            const rect = moleImg.getBoundingClientRect();
+            const containerRect = document.querySelector('.game-container').getBoundingClientRect();
+            
+            // 별들을 이미지 위에 생성
+            const starCount = 8;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.textContent = '⭐';
+                
+                const angle = (i / starCount) * Math.PI * 2;
+                const distance = 80;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                star.style.setProperty('--tx', tx + 'px');
+                star.style.setProperty('--ty', ty + 'px');
+                star.style.left = (rect.left - containerRect.left + rect.width / 2) + 'px';
+                star.style.top = (rect.top - containerRect.top + rect.height / 2) + 'px';
+                
+                document.querySelector('.game-container').appendChild(star);
+
+                setTimeout(() => {
+                    star.remove();
+                }, 600);
+            }
+        }
+
+        function getRandomMoles() {
+            const count = Math.floor(Math.random() * 2) + 2; // 2~3개
+            const selectedMoles = [];
+            const availableMoles = Array.from(moles).filter(m => !activeMoles.has(m));
+
+            for (let i = 0; i < Math.min(count, availableMoles.length); i++) {
+                const randomIndex = Math.floor(Math.random() * availableMoles.length);
+                selectedMoles.push(availableMoles[randomIndex]);
+                availableMoles.splice(randomIndex, 1);
+            }
+
+            return selectedMoles;
+        }
+
+        function popMoles() {
+            if (!gameActive) return;
+
+            const selectedMoles = getRandomMoles();
+            selectedMoles.forEach(mole => {
+                if (!mole.classList.contains('hit')) {
+                    mole.classList.add('active');
+                    activeMoles.add(mole);
+                }
+            });
+
+            // 1초 후 다시 들어가기
+            setTimeout(() => {
+                selectedMoles.forEach(mole => {
+                    if (mole.classList.contains('active') && !mole.classList.contains('hit')) {
+                        mole.classList.remove('active');
+                        activeMoles.delete(mole);
+                    }
+                });
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            startBtn.disabled = false;
+            finalScoreDisplay.textContent = score;
+            
+            // 인터벌 정지
+            clearInterval(popInterval);
+            clearInterval(timerInterval);
+
+            // 활성 두더지 모두 들어가기
+            moles.forEach(mole => {
+                mole.classList.remove('active');
+            });
+
+            setTimeout(() => {
+                gameOverModal.classList.add('show');
+            }, 300);
+        }
+    </script>
+</body>
+</html>
